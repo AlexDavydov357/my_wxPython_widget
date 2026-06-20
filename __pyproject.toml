@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "my-wxpython-widget"
+version = "0.1.0"
+
+description = "Набор кастомных wxPython-виджетов"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}     
+authors = [
+    {name = "Alex Davydov", email = "alex_n_davydov@mail.ru"},
+]
+keywords = ["wxPython", "widgets", "gui", "controls"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Framework :: wxPython",
+    "Topic :: Software Development :: User Interfaces",
+]
+
+# Зависимости, которые нужны пользователю пакета
+dependencies = [
+    "wxPython>=4.2.0", ]
+#    "matplotlib>=3.8.4",
+#    "numpy>=2.23",
+#]
+
+
+[project.urls]
+Homepage = "https://github.com/AlexDavydov357/my_wxPython_widget"
+Repository = "https://github.com/AlexDavydov357/my_wxPython_widget.git"
+Documentation = "https://alexdavydov357.github.io/my_wxPython_widget/"
+
+# Настройка динамической версии
+[tool.setuptools_scm]
+local_scheme = "node-and-timestamp"

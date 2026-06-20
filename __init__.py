@@ -1,4 +1,4 @@
-"""my_any_ctrl – набор пользовательских wxPython-виджетов."""
+"""my_wxpython_widget – набор пользовательских wxPython-виджетов."""
 
 from .widgets import (
     Buble_size_Pref,

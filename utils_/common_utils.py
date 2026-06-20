@@ -8,7 +8,7 @@ import winsound
 # import time, datetime
 # import pickle
 import os
-# import wx
+import wx
 #
 # import cv2
 # import math
@@ -34,6 +34,25 @@ import numpy as np
 
 
 # mpl.use('Agg')
+# ----------------------------------------------------------------------
+#  Вспомогательная функция для генерации события EVT_SLIDER
+# ----------------------------------------------------------------------
+def post_slider_event(ctrl: wx.Window):
+    """
+    Вспомогательная функция для генерации события EVT_SLIDER
+    Посылает событие EVT_SLIDER от `ctrl` (обычно от MySliderCtrl)
+    наружу.  Это позволяет клиентскому коду, который привязывает
+    обработчик к самому MySliderCtrl, получать уведомления о
+    изменении значения, независимо от того, как оно было изменено
+    (перетаскиванием ползунка, колесиком мыши, меню и т.д.).
+    """
+    # Создаём событие того же типа, что и обычный EVT_SLIDER.
+    # typeId – это числовой идентификатор события.
+    ev = wx.CommandEvent(wx.EVT_SLIDER.typeId, ctrl.GetId())
+    ev.SetEventObject(ctrl)          # источник события – наш контрол
+    # Если нужно, можно добавить пользовательские данные:
+    # ev.SetInt(ctrl.GetValue())
+    wx.PostEvent(ctrl, ev)           # посылаем событие в очередь обработки
 
 def resource_path2(relative_path):
     if os.path.exists(relative_path):
