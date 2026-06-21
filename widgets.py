@@ -484,6 +484,7 @@ class MySliderCtrl(wx.Panel):
         bmp: wx.Bitmap или None - иконка может располагаться left, right, top, bottom по умолчанию right
         Флаг self.drop - для активации пункта выпадающего меню - сбросить значения к исходным
         Флаг self.null - для активации пункта выпадающего меню - обнулить значение
+        Флаг self.quantization=False  активирует рижим квантования по шагу
         """
         wx.Panel.__init__(self, parent=parent, id=-1, style=style_panel)
         self.tooltip = ''
@@ -494,6 +495,7 @@ class MySliderCtrl(wx.Panel):
         self.value = self.default_value = 0
         self.mem_value = 0
         self.icon = None
+        self.quantization=False # фллаг активирует рижим квантования
         # список доступных шагов (по‑умолчанию – стандартный набор)
         self._inc_items = [1, 5, 10, 25, 50, 100]
         if type == 'float':
@@ -690,20 +692,13 @@ class MySliderCtrl(wx.Panel):
         Обрабатывает вращение колёсика мыши.
         Работает одинаково в int‑ и float‑режимах, без «скачков».
         """
-        # --------------------------------------------------------------
-        # 1. Сколько «щелчков» было в этом событии?
-        #    120 → один щелчок вперёд, -120 → один назад,
-        #    240 → два вперёд и т.д.
-        # --------------------------------------------------------------
-        wheel_steps = e.GetWheelRotation() // 120  # целочисленное деление сохраняет знак
-        if wheel_steps == 0:  # иногда бывает 0 (медленное вращение)
+
+        direction = e.GetWheelRotation() // 120  # получаем направление вращения (1 или -1)
+        if direction == 0:  # иногда бывает 0 (медленное вращение)
             e.Skip()
             return
 
-        # --------------------------------------------------------------
-        # 2. Текущее значение «внутри» слайдера (целое)
-        # --------------------------------------------------------------
-        cur_int = self.slider.GetValue()  # уже в целых, которые понимает wx.Slider
+        cur_int = self.slider.GetValue()  # Текущее значение «внутри» слайдера (целое)
 
         # --------------------------------------------------------------
         # 3. Вычисляем шаг в том же масштабе, что и слайдер
@@ -713,7 +708,7 @@ class MySliderCtrl(wx.Panel):
             step_int = self._float_to_int(self.increment)
 
             # новое целое значение
-            new_int = cur_int + wheel_steps * step_int
+            new_int = cur_int + direction * step_int
 
             # ограничиваем диапазоном, чтобы не выйти за пределы
             new_int = max(self.min_value, min(self.max_value, new_int))
@@ -723,43 +718,14 @@ class MySliderCtrl(wx.Panel):
         else:
             # int‑режим – шаг уже целый
             step_int = int(self.increment)  # гарантируем int
-            new_int = cur_int + wheel_steps * step_int
-            new_int = max(self.min_value, min(self.max_value, new_int))
+            print(f"cur_int: {cur_int}, step_int: {step_int}")
+            new_int = cur_int + direction * step_int
+            np.clip(new_int, self.min_value, self.max_value)
             self.SetValue(new_int)
+            
+        print(f'MouseWheel {self.type} cur_int: {cur_int} new_int: {new_int} direction: {direction} {self.increment}')
+        post_slider_event(self) # генерируем собыите EVT_SLIDER для передачи в родителя
 
-        # --------------------------------------------------------------
-        # 4. Пропускаем событие дальше, если кто‑то ещё хочет его обработать
-        # --------------------------------------------------------------
-        e.Skip()
-
-    def MouseWheel_old(self, e=None):
-        direction = e.GetWheelRotation() // 120  # направление
-        print(f'MouseWheel value: {self.value} {direction * self.increment} {direction} {self.increment}')
-        if direction == 0:  # иногда бывает 0 (например, при очень медленном вращении)
-            if e is not None:
-                e.Skip()
-            return
-        # 2. Текущее «логическое» значение (float или int)
-        cur_val = self.slider.GetValue()
-        if self.type == 'float':
-            cur_val = self._int_to_float(cur_val)  # переводим в float
-
-        # 3. Вычисляем шаг в том же масштабе, что и значение
-        #    Для float‑режима переводим шаг в целое, иначе оставляем как есть
-        if self.type == 'float':
-            step_int = self._float_to_int(self.increment)  # шаг в целых
-            new_val_int = cur_val * (10 ** self._float_precision()) + direction * step_int
-            # Приводим к целому, чтобы не было «плавающих» остатков
-            new_val_int = int(round(new_val_int))
-            # 4. Устанавливаем новое значение через SetValue (которая сама сделает обратный перевод)
-            self.SetValue(self._int_to_float(new_val_int))
-        else:
-            # int‑режим – шаг уже целый
-            new_val = cur_val + direction * self.increment
-            self.SetValue(new_val)
-
-        if e is not None:
-            e.Skip()
 
     def SetLabel(self, label):
         """ Устанавливает текст к слайдеру"""
@@ -872,7 +838,8 @@ class MySliderCtrl(wx.Panel):
             self.slider.SetValue(self._float_to_int(self.value))
         else:
             self.slider.SetValue(int(self.value))
-        self.val_ctrl()
+        # self.val_ctrl()
+        self.SetToolTip(val=self.value)
         self.Layout()
 
     def SetNull(self, e=None):
@@ -887,7 +854,12 @@ class MySliderCtrl(wx.Panel):
         # обновляем компоновку, если размеры изменились
         self.Layout()
 
-    def SetToolTip(self, tip):
+    def SetToolTip(self, tip=None, val=None):
+        """ Устанавливает подсказку для всех элементов виджета при val None
+        добавляет текущее значение в конец подсказки val is not None"""
+        if val is not None:
+            self.slider.SetToolTip(f'{self.tooltip}: {val}' )
+            return
         self.display.SetToolTip(tip)
         self.slider.SetToolTip(tip)
         self.tooltip = tip
@@ -956,6 +928,12 @@ class MySliderCtrl(wx.Panel):
         cur_val = self.slider.GetValue()
         if self.type == 'float':
             cur_val = self._int_to_float(cur_val)
+        if self.quantization:
+            if cur_val > self.mem_value:
+                cur_val = self.mem_value + self.increment
+            else:
+                cur_val = self.mem_value - self.increment
+            np.clip(cur_val, self.min_value, self.max_value)
 
         self.mem_value = self.value
         self.value = cur_val
